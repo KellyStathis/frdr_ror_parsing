@@ -1,7 +1,7 @@
 import pickle
 import csv
 
-with open('funders.pickle', 'rb') as f:
+with open('canadian_funders.pickle', 'rb') as f:
     funders = pickle.load(f)
 
     def analyzeAltLabels(altLabels):

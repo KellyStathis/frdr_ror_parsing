@@ -36,6 +36,6 @@ for doi in funder_dois:
     if count % 10 == 0:
         print(count)
 
-with open('funders.pickle', 'wb') as f:
+with open('canadian_funders.pickle', 'wb') as f:
     pickle.dump(funders, f, pickle.HIGHEST_PROTOCOL)
 
