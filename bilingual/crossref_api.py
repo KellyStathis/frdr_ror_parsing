@@ -3,9 +3,6 @@ import csv
 import requests
 import pickle
 
-max_alt_names = 7 # Maximum present in Canadian funder data
-
-
 funder_dois = []
 funders = []
 
@@ -32,6 +29,7 @@ for doi in funder_dois:
 
     funders.append({"doi": doi, "prefLabel": prefLabel, "altLabels": altLabels, "response_json": response_json})
 
+    # TODO: Remove duplicates that can emerge from incorrect RDF labels
     count = count+1
     if count % 10 == 0:
         print(count)
