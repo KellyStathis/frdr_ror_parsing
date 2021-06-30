@@ -6,6 +6,56 @@ import csv
 import requests
 
 # Helper functions for metadata_pickle_to_metadata_csv
+def map_fund_ref_to_ror():
+    try:
+        with open("ror-data.json", "r") as f:
+            ror_data_list = json.load(f)
+    except FileNotFoundError as e:
+        print("ror-data.json not found")
+
+    fundref_to_ror = {}
+    for ror_entry in ror_data_list:
+        if ror_entry["country"]["country_code"] == "CA":
+            if "external_ids" in ror_entry and "FundRef" in ror_entry["external_ids"]:
+                preferred_fundref_id = None
+                all_fundref_ids = []
+
+                # Get preferred and secondary FundRef IDs
+                if "all" in ror_entry["external_ids"]["FundRef"]:
+                    all_fundref_ids = ror_entry["external_ids"]["FundRef"]["all"]
+                    if len(all_fundref_ids) == 1 and "preferred" in ror_entry["external_ids"]["FundRef"] and not \
+                    ror_entry["external_ids"]["FundRef"]["preferred"]:
+                        preferred_fundref_id = ror_entry["external_ids"]["FundRef"]["all"][0]
+                if "preferred" in ror_entry["external_ids"]["FundRef"] and ror_entry["external_ids"]["FundRef"][
+                    "preferred"]:
+                    preferred_fundref_id = ror_entry["external_ids"]["FundRef"]["preferred"]
+                if preferred_fundref_id in all_fundref_ids:
+                    all_fundref_ids.remove(preferred_fundref_id)
+
+                # Store preferred FundRef ID
+                if preferred_fundref_id:
+                    if preferred_fundref_id not in fundref_to_ror.keys():
+                        fundref_to_ror[preferred_fundref_id] = {"preferred": [ror_entry["id"]]}
+                    else:
+                        if "preferred" in fundref_to_ror[preferred_fundref_id]:
+                            fundref_to_ror[preferred_fundref_id]["preferred"] = fundref_to_ror[preferred_fundref_id][
+                                "preferred"].append(preferred_fundref_id)
+                        else:
+                            fundref_to_ror[preferred_fundref_id] = {"preferred": ror_entry["id"]}
+
+                # Store secondary FundRef IDs
+                for secondary_fundref_id in all_fundref_ids:
+                    if secondary_fundref_id not in fundref_to_ror.keys():
+                        fundref_to_ror[secondary_fundref_id] = {"secondary": [ror_entry["id"]]}
+                    else:
+                        if "secondary" in fundref_to_ror[secondary_fundref_id]:
+                            fundref_to_ror[secondary_fundref_id]["secondary"] = fundref_to_ror[secondary_fundref_id][
+                                "secondary"].append(secondary_fundref_id)
+                        else:
+                            fundref_to_ror[secondary_fundref_id] = {"secondary": [ror_entry["id"]]}
+
+    return fundref_to_ror
+
 def process_funder_metadata(funder):
     funder_metadata = {}
 
@@ -154,6 +204,8 @@ def metadata_pickle_to_metadata_csv():
         print("canadian_funders.pickle not found; run with --metadatapickle first")
         exit()
 
+    fundref_to_ror = map_fund_ref_to_ror()
+
     allkeys = ["id", "prefLabel", "prefLang", "primaryName_en", "primaryName_fr", "primaryName_other", "nonDisplay",
                "altNames_en", "altNames_fr", "fundingBodyType", "fundingBodySubType", "broader", "narrower",
                "incorporates", "splitFrom", "mergerOf", "replaces", "continuationOf", "renamedAs", "splitInto",
@@ -162,6 +214,13 @@ def metadata_pickle_to_metadata_csv():
     processed_funders = []
     for funder in funders:
         funder_metadata = process_funder_metadata(funder)
+        funder_metadata["doi"] = funder_metadata["id"]
+        funder_metadata["id"] = funder["doi"].split("http://dx.doi.org/10.13039/")[1]
+        if funder_metadata["id"] in fundref_to_ror.keys():
+            if "preferred" in fundref_to_ror[funder_metadata["id"]]:
+                funder_metadata["ror_id_preferred"] = "||".join(fundref_to_ror[funder_metadata["id"]]["preferred"])
+            if "secondary" in fundref_to_ror[funder_metadata["id"]]:
+                funder_metadata["ror_id_secondary"] = "||".join(fundref_to_ror[funder_metadata["id"]]["secondary"])
         processed_funders.append(funder_metadata)
         for key in funder_metadata.keys():
             if key not in allkeys:
