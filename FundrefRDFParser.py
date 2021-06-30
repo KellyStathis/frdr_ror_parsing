@@ -168,7 +168,7 @@ def metadata_pickle_to_metadata_csv():
                 allkeys.append(key)
     print(allkeys)
 
-    with open("canadianFundersBilingual.csv", "w") as csvfile:
+    with open("canadianFunderMetadata.csv", "w") as csvfile:
         csvwriter = csv.DictWriter(csvfile, fieldnames=allkeys)
         csvwriter.writeheader()
         for funder in processed_funders:
