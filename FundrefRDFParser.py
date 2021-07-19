@@ -4,6 +4,8 @@ import argparse
 import json
 import csv
 import requests
+from rdflib import URIRef
+from rdflib.namespace import RDF, SKOS
 
 # Helper functions for metadata_pickle_to_metadata_csv
 def map_fund_ref_to_ror():
@@ -127,6 +129,37 @@ def rdf_to_graph_pickle():
     with open("registry.pickle", "wb") as f:
         pickle.dump(g, f, pickle.HIGHEST_PROTOCOL)
 
+def graph_pickle_to_all_funders_csv():
+    try:
+        with open("registry.pickle", "rb") as f:
+            g = pickle.load(f)
+    except FileNotFoundError as e:
+        print("registry.pickle not found; run with --graphpickle first")
+        exit()
+
+    # Get DOIs
+    funderDOIs = list(g.subjects(RDF.type, SKOS.Concept))
+
+    # Get metadata
+    allPredicates = []
+    funderMetadata = {}
+    for doi in funderDOIs:
+        funderMetadata[doi] = {}
+        for p,o in g.predicate_objects(doi):
+            if p not in allPredicates:
+                allPredicates.append(p)
+            if "prefLabel" in p or "altLabel" in p:
+                o = g.value(o, URIRef("http://www.w3.org/2008/05/skos-xl#literalForm"))
+            if p not in funderMetadata[doi]:
+                funderMetadata[doi][p] = o
+            else:
+                if not isinstance(funderMetadata[doi][p], list):
+                    funderMetadata[doi][p] = [funderMetadata[doi][p]]
+                funderMetadata[doi][p].append(o)
+
+    print(allPredicates)
+
+
 def graph_pickle_to_list_csv():
     try:
         with open("registry.pickle", "rb") as f:
@@ -236,10 +269,11 @@ def metadata_pickle_to_metadata_csv():
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--graphpickle', action='store_true', default=False)
-    parser.add_argument('--listcsv', action='store_true', default=False)
+    parser.add_argument('--listcsv', action='store_true', default=False) # Canadian only
     parser.add_argument('--metadatapickle', action='store_true', default=False)
     parser.add_argument('--metadatacsv', action='store_true', default=False)
     parser.add_argument('--all', action='store_true', default=False)
+    parser.add_argument('--allfunderscsv', action='store_true', default=False) # Export everything
 
     args = parser.parse_args()
 
@@ -255,6 +289,9 @@ def main():
     if args.metadatacsv or args.all:
         print("Generating canadianFunderMetadata.csv from canadian_funders.pickle...")
         metadata_pickle_to_metadata_csv()
+    if args.allfunderscsv:
+        print("Generating allFunders.csv from canadian_funders.pickle...")
+        graph_pickle_to_all_funders_csv()
     if not args.all and not args.graphpickle and not args.listcsv and not args.metadatapickle and not args.metadatacsv:
         print("usage: must specify at least one of: --all --graphpickle --listcsv --metadatapickle --metadatacsv")
 
