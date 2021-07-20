@@ -74,17 +74,17 @@ def process_funder_metadata(funder):
                 elif key == "address":
                     funder_metadata[key] = funder["response_json"][key]["postalAddress"]["addressCountry"]
                 else:
-                    print("Error: " + key + ": dict has other keys besides 'resource': " + str(funder["response_json"][key]))
+                    print("Error: {}: dict has other keys besides 'resource': {}".format(key, funder["response_json"][key]))
             elif isinstance(funder["response_json"][key], list):
                 funder_metadata[key] = []
                 for item in funder["response_json"][key]:
                     if isinstance(item, dict) and len(item.keys()) == 1 and "resource" in item:
                         funder_metadata[key].append(item["resource"])
                     else:
-                        print("Error: " + key + ": list: " + str(funder["response_json"][key]))
+                        print("Error: {}: list: {}".format(key, funder["response_json"][key]))
                 funder_metadata[key] = "||".join(funder_metadata[key])
             else:
-                print("Error: " + key + ": other type: " + str(funder["response_json"][key]))
+                print("Error: {}" + key + ": other type: {}".format(key, funder["response_json"][key]))
 
     # Process prefLabel and altLabel
     funder_metadata["prefLang"] = funder["response_json"]["prefLabel"]["Label"]["literalForm"]["lang"]
@@ -129,12 +129,12 @@ def rdf_to_graph_pickle():
     with open("registry.pickle", "wb") as f:
         pickle.dump(g, f, pickle.HIGHEST_PROTOCOL)
 
-def graph_pickle_to_all_funders_csv():
+def graph_pickle_to_full_metadata_csv():
     try:
         with open("registry.pickle", "rb") as f:
             g = pickle.load(f)
     except FileNotFoundError as e:
-        print("registry.pickle not found; run with --graphpickle first")
+        print("registry.pickle not found; run with --full_graphpickle first")
         exit()
 
     # Get DOIs
@@ -160,12 +160,12 @@ def graph_pickle_to_all_funders_csv():
     print(allPredicates)
 
 
-def graph_pickle_to_list_csv():
+def graph_pickle_to_can_list_csv():
     try:
         with open("registry.pickle", "rb") as f:
             g = pickle.load(f)
     except FileNotFoundError as e:
-        print("registry.pickle not found; run with --graphpickle first")
+        print("registry.pickle not found; run with --full_graphpickle first")
         exit()
 
     print(len(g))
@@ -200,7 +200,7 @@ def graph_pickle_to_list_csv():
         f.write(funder[0] + "," + "\"" + funder[1] + "\"" + "\n")
     f.close()
 
-def list_csv_to_metadata_pickle():
+def list_csv_to_can_metadata_pickle():
     funder_dois = []
     funders = []
 
@@ -212,10 +212,10 @@ def list_csv_to_metadata_pickle():
                 if doi not in funder_dois:
                     funder_dois.append(row[0])
     except FileNotFoundError as e:
-        print("canadianFunderNames.csv not found; run with --listcsv first")
+        print("canadianFunderNames.csv not found; run with --can_listcsv first")
         exit()
 
-    print("Processing " + str(len(funder_dois)) + " funders...")
+    print("Processing {} funders...".format(len(funder_dois)))
     count = 0
     for doi in funder_dois:
         response = requests.get(doi)
@@ -223,18 +223,18 @@ def list_csv_to_metadata_pickle():
         funders.append({"doi": doi, "response_json": response_json})
         count = count + 1
         if count % 50 == 0:
-            print("Done " + str(count) + " of " + str(len(funder_dois)) + " funders")
-    print("Done " + str(count) + " of " + str(len(funder_dois)) + " funders")
+            print("Done {} of {} funders".format(count, len(funder_dois)))
+    print("Done {} of {} funders".format(count, len(funder_dois)))
 
     with open("canadian_funders.pickle", "wb") as f:
         pickle.dump(funders, f, pickle.HIGHEST_PROTOCOL)
 
-def metadata_pickle_to_metadata_csv():
+def metadata_pickle_to_can_metadata_csv():
     try:
         with open("canadian_funders.pickle", "rb") as f:
             funders = pickle.load(f)
     except FileNotFoundError as e:
-        print("canadian_funders.pickle not found; run with --metadatapickle first")
+        print("canadian_funders.pickle not found; run with --can_metadatapickle first")
         exit()
 
     fundref_to_ror = map_fund_ref_to_ror()
@@ -268,32 +268,32 @@ def metadata_pickle_to_metadata_csv():
 
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('--graphpickle', action='store_true', default=False)
-    parser.add_argument('--listcsv', action='store_true', default=False) # Canadian only
-    parser.add_argument('--metadatapickle', action='store_true', default=False)
-    parser.add_argument('--metadatacsv', action='store_true', default=False)
-    parser.add_argument('--all', action='store_true', default=False)
-    parser.add_argument('--allfunderscsv', action='store_true', default=False) # Export everything
+    parser.add_argument('--full_graphpickle', action='store_true', default=False)
+    parser.add_argument('--can_listcsv', action='store_true', default=False) # Canadian only
+    parser.add_argument('--can_metadatapickle', action='store_true', default=False)
+    parser.add_argument('--can_metadatacsv', action='store_true', default=False)
+    parser.add_argument('--can_allsteps', action='store_true', default=False)
+    parser.add_argument('--full_metadatacsv', action='store_true', default=False) # Export everything
 
     args = parser.parse_args()
 
-    if args.graphpickle or args.all:
+    if args.full_graphpickle or args.can_allsteps:
         print("Generating registry.pickle from registry.rdf...")
         rdf_to_graph_pickle()
-    if args.listcsv or args.all:
+    if args.can_listcsv or args.can_allsteps:
         print("Generating canadianFunderNames.csv from registry.pickle...")
-        graph_pickle_to_list_csv()
-    if args.metadatapickle or args.all:
+        graph_pickle_to_can_list_csv()
+    if args.can_metadatapickle or args.can_allsteps:
         print("Generating canadian_funders.pickle from canadianFunderNames.csv...")
-        list_csv_to_metadata_pickle()
-    if args.metadatacsv or args.all:
+        list_csv_to_can_metadata_pickle()
+    if args.can_metadatacsv or args.can_allsteps:
         print("Generating canadianFunderMetadata.csv from canadian_funders.pickle...")
-        metadata_pickle_to_metadata_csv()
-    if args.allfunderscsv:
-        print("Generating allFunders.csv from canadian_funders.pickle...")
-        graph_pickle_to_all_funders_csv()
-    if not args.all and not args.graphpickle and not args.listcsv and not args.metadatapickle and not args.metadatacsv:
-        print("usage: must specify at least one of: --all --graphpickle --listcsv --metadatapickle --metadatacsv")
+        metadata_pickle_to_can_metadata_csv()
+    if args.full_metadatacsv:
+        print("Generating allFundersMetadata.csv from canadian_funders.pickle...")
+        graph_pickle_to_full_metadata_csv()
+    if not args.can_allsteps and not args.full_graphpickle and not args.can_listcsv and not args.can_metadatapickle and not args.can_metadatacsv and not args.full_metadatacsv:
+        print("usage: must specify at least one of: --can_allsteps --full_graphpickle --can_listcsv --can_metadatapickle --can_metadatacsv --full_metadatacsv")
 
 if __name__ == "__main__":
     main()
