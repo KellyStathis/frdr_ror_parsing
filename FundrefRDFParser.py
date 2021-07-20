@@ -140,25 +140,68 @@ def graph_pickle_to_full_metadata_csv():
     # Get DOIs
     funderDOIs = list(g.subjects(RDF.type, SKOS.Concept))
 
+    uris_to_labels = {
+        "doi": "doi",
+        "http://www.w3.org/2004/02/skos/core#inScheme": "skos-core_inScheme",
+        "http://purl.org/dc/terms/created": "dcterms_created",
+        "http://www.w3.org/2004/02/skos/core#broader": "skos-core_broader",
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": "rdf-syntax-ns_type",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/country": "crossref_country",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/region": "crossref_region",
+        "http://purl.org/dc/terms/modified": "dcterms_modified",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/fundingBodyType": "crossref_fundingBodyType",
+        "https://none.schema.org/address": "schema.org_address",
+        "http://www.w3.org/2008/05/skos-xl#altLabel": "skos-xl_altLabel",
+        "http://www.w3.org/2008/05/skos-xl#prefLabel": "skos-xl_prefLabel",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/fundingBodySubType": "crossref_fundingBodySubType",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/state": "crossref_state",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/affilWith": "crossref_affilWith",
+        "http://www.w3.org/2004/02/skos/core#narrower": "skos-core_narrower",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/taxId": "crossref_taxId",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/continuationOf": "crossref_continuationOf",
+        "http://data.crossref.org/fundingdata/termsstatus": "crossref_termsstatus",
+        "http://purl.org/dc/terms/isReplacedBy": "dcterms_isReplacedBy",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/renamedAs": "crossref_renamedAs",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporatedInto": "crossref_incorporatedInto",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergedWith": "crossref_mergedWith",
+        "http://purl.org/dc/terms/replaces": "dcterms_replaces",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergerOf": "crossref_mergerOf",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporates": "crossref_incorporates",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitInto": "crossref_splitInto",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitFrom": "crossref_splitFrom"
+    }
+
     # Get metadata
-    allPredicates = []
+    allkeys = ["doi"]
     funderMetadata = {}
-    for doi in funderDOIs:
-        funderMetadata[doi] = {}
-        for p,o in g.predicate_objects(doi):
-            if p not in allPredicates:
-                allPredicates.append(p)
+    for funderDOI in funderDOIs:
+        if len(funderMetadata) % 5000 == 0 and len(funderMetadata) > 0:
+            print("Done {} of {} funders".format(len(funderMetadata), len(funderDOIs)))
+        funderMetadata[funderDOI] = {"doi": str(funderDOI)}
+        for p,o in g.predicate_objects(funderDOI):
+            if p not in allkeys:
+                allkeys.append(p)
             if "prefLabel" in p or "altLabel" in p:
                 o = g.value(o, URIRef("http://www.w3.org/2008/05/skos-xl#literalForm"))
-            if p not in funderMetadata[doi]:
-                funderMetadata[doi][p] = o
+            if uris_to_labels[str(p)] not in funderMetadata[funderDOI]:
+                funderMetadata[funderDOI][uris_to_labels[str(p)]] = str(o)
             else:
-                if not isinstance(funderMetadata[doi][p], list):
-                    funderMetadata[doi][p] = [funderMetadata[doi][p]]
-                funderMetadata[doi][p].append(o)
+                funderMetadata[funderDOI][uris_to_labels[str(p)]] = funderMetadata[funderDOI][uris_to_labels[str(p)]] + "||" + str(o)
+    print("Done {} of {} funders".format(len(funderMetadata), len(funderDOIs)))
 
-    print(allPredicates)
+    # Add any missing keys to uris_to_labels for csv header
+    for key in allkeys:
+        if str(key) not in uris_to_labels:
+            uris_to_labels[str(key)] = str(key)
 
+    with open("allFunderMetadata.csv", "w") as csvfile:
+        csvwriter = csv.DictWriter(csvfile, fieldnames=list(uris_to_labels.values()))
+        csvwriter.writeheader()
+        for funderDOI in funderMetadata:
+            csvwriter.writerow(funderMetadata[funderDOI])
+
+    for col in allkeys:
+        print(col)
 
 def graph_pickle_to_can_list_csv():
     try:
