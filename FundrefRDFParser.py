@@ -129,6 +129,14 @@ def rdf_to_graph_pickle():
     with open("registry.pickle", "wb") as f:
         pickle.dump(g, f, pickle.HIGHEST_PROTOCOL)
 
+def get_funder_labels(funder):
+    labels = []
+    if "skos-xl_prefLabel" in funder:
+        labels.append(funder["skos-xl_prefLabel"])
+    if "skos-xl_altLabel" in funder:
+        labels.extend(funder["skos-xl_altLabel"].split("||"))
+    return labels
+
 def graph_pickle_to_full_metadata_csv():
     try:
         with open("registry.pickle", "rb") as f:
@@ -168,7 +176,8 @@ def graph_pickle_to_full_metadata_csv():
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergerOf": "crossref_mergerOf",
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporates": "crossref_incorporates",
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitInto": "crossref_splitInto",
-        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitFrom": "crossref_splitFrom"
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitFrom": "crossref_splitFrom",
+        "previousLabel": "previousLabel"
     }
 
     # Get metadata
@@ -182,12 +191,58 @@ def graph_pickle_to_full_metadata_csv():
             if p not in allkeys:
                 allkeys.append(p)
             if "prefLabel" in p or "altLabel" in p:
+                # Get string literal for label
                 o = g.value(o, URIRef("http://www.w3.org/2008/05/skos-xl#literalForm"))
             if uris_to_labels[str(p)] not in funderMetadata[funderDOI]:
                 funderMetadata[funderDOI][uris_to_labels[str(p)]] = str(o)
             else:
                 funderMetadata[funderDOI][uris_to_labels[str(p)]] = funderMetadata[funderDOI][uris_to_labels[str(p)]] + "||" + str(o)
     print("Done {} of {} funders".format(len(funderMetadata), len(funderDOIs)))
+
+    # Add labels to subjects from the targets of: continuationOf, incorporates, mergerOf, replaces, and splitFrom
+    for subject_funderDOI in funderMetadata:
+        subject_funder = funderMetadata[subject_funderDOI]
+        subject_previousLabels = []
+        for relation in ["crossref_continuationOf", "crossref_incorporates", "crossref_mergerOf", "dcterms_replaces", "crossref_splitFrom"]:
+            if relation in subject_funder:
+                for target_funderDOI in subject_funder[relation].split("||"):
+                    target_funder = funderMetadata[URIRef(target_funderDOI)]
+                    subject_previousLabels.extend(get_funder_labels(target_funder))
+
+        # Exclude labels that duplicate subject's current labels (prefLabel or altLabels)
+        subject_currentLabels = get_funder_labels(subject_funder)
+        subject_previousLabels = list(set(subject_previousLabels) - set(subject_currentLabels))
+
+        if len(subject_previousLabels)  > 0:
+            # Update subject's previousLabel in funderMetadata
+            funderMetadata[subject_funderDOI]["previousLabel"] = "||".join(subject_previousLabels)
+
+    # Add labels to targets from subjects with: incorporatedInto, isReplacedBy, mergedWith, renamedAs, and splitInto
+    for subject_funderDOI in funderMetadata:
+        subject_funder = funderMetadata[subject_funderDOI]
+        for relation in ["crossref_incorporatedInto", "crossref_isReplacedBy", "crossref_mergedWith", "dcterms_renamedAs", "crossref_splitInto"]:
+            if relation in subject_funder:
+                for target_funderDOI in subject_funder[relation].split("||"):
+                    target_funder = funderMetadata[URIRef(target_funderDOI)]
+                    # Get labels from subject (to become previous labels for target)
+                    subject_currentLabels = get_funder_labels(funderMetadata[subject_funderDOI])
+
+                    # Exclude labels that duplicate target's current labels (prefLabel or altLabels)
+                    target_currentLabels = get_funder_labels(target_funder)
+                    subject_currentLabels = list(set(subject_currentLabels) - set(target_currentLabels))
+
+                    if len(subject_currentLabels) > 0:
+                        # Add subject's current labels as "previous labels" of target
+                        if "previousLabel" not in target_funder:
+                            # Update target's previousLabel in funderMetadata
+                            funderMetadata[URIRef(target_funderDOI)]["previousLabel"] = "||".join(subject_currentLabels)
+                        else:
+                            target_previousLabels = target_funder["previousLabel"].split("||")
+                            new_target_previousLabels = list(set(subject_currentLabels) - set(target_previousLabels))
+                            if len(new_target_previousLabels) > 0:
+                                # Update target's previousLabel in funderMetadata
+                                target_previousLabels.extend(new_target_previousLabels)
+                                funderMetadata[URIRef(target_funderDOI)]["previousLabel"] = "||".join(target_previousLabels)
 
     # Add any missing keys to uris_to_labels for csv header
     for key in allkeys:
