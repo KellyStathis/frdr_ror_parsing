@@ -148,57 +148,117 @@ def graph_pickle_to_full_metadata_csv():
     # Get DOIs
     funderDOIs = list(g.subjects(RDF.type, SKOS.Concept))
 
+    # Labels for CSV header
     uris_to_labels = {
         "doi": "doi",
-        "http://www.w3.org/2004/02/skos/core#inScheme": "skos-core_inScheme",
-        "http://purl.org/dc/terms/created": "dcterms_created",
-        "http://www.w3.org/2004/02/skos/core#broader": "skos-core_broader",
-        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": "rdf-syntax-ns_type",
+        "http://www.w3.org/2008/05/skos-xl#prefLabel": "skos-xl_prefLabel",
+        "prefLabel_lang": "prefLabel_lang",
+        "http://www.w3.org/2008/05/skos-xl#altLabel": "skos-xl_altLabel",
+        "previousLabel": "previousLabel",
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/country": "crossref_country",
-        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/region": "crossref_region",
+        "http://purl.org/dc/terms/created": "dcterms_created",
         "http://purl.org/dc/terms/modified": "dcterms_modified",
+        "primaryName_en": "primaryName_en",
+        "primaryName_fr": "primaryName_fr",
+        "primaryName_other": "primaryName_other",
+        "nonDisplayNames": "nonDisplayNames",
+        "altNames_en": "altNames_en",
+        "altNames_fr": "altNames_fr",
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/fundingBodyType": "crossref_fundingBodyType",
         "https://none.schema.org/address": "schema.org_address",
-        "http://www.w3.org/2008/05/skos-xl#altLabel": "skos-xl_altLabel",
-        "http://www.w3.org/2008/05/skos-xl#prefLabel": "skos-xl_prefLabel",
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/fundingBodySubType": "crossref_fundingBodySubType",
-        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/state": "crossref_state",
-        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/affilWith": "crossref_affilWith",
-        "http://www.w3.org/2004/02/skos/core#narrower": "skos-core_narrower",
-        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/taxId": "crossref_taxId",
-        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/continuationOf": "crossref_continuationOf",
         "http://data.crossref.org/fundingdata/termsstatus": "crossref_termsstatus",
-        "http://purl.org/dc/terms/isReplacedBy": "dcterms_isReplacedBy",
-        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/renamedAs": "crossref_renamedAs",
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporatedInto": "crossref_incorporatedInto",
+        "http://purl.org/dc/terms/isReplacedBy": "dcterms_isReplacedBy",
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergedWith": "crossref_mergedWith",
-        "http://purl.org/dc/terms/replaces": "dcterms_replaces",
-        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergerOf": "crossref_mergerOf",
-        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporates": "crossref_incorporates",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/renamedAs": "crossref_renamedAs",
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitInto": "crossref_splitInto",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/continuationOf": "crossref_continuationOf",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporates": "crossref_incorporates",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergerOf": "crossref_mergerOf",
+        "http://purl.org/dc/terms/replaces": "dcterms_replaces",
         "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitFrom": "crossref_splitFrom",
-        "previousLabel": "previousLabel"
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/affilWith": "crossref_affilWith",
+        "http://www.w3.org/2004/02/skos/core#broader": "skos-core_broader",
+        "http://www.w3.org/2004/02/skos/core#narrower": "skos-core_narrower",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/region": "crossref_region",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/state": "crossref_state",
+        "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/taxId": "crossref_taxId",
+        "http://www.w3.org/2004/02/skos/core#inScheme": "skos-core_inScheme",
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type": "rdf-syntax-ns_type",
+        "ror_preferred": "ror_preferred",
+        "ror_secondary": "ror_secondary"
     }
 
-    # Get metadata
+    # Set up ROR lookup
+    fundref_to_ror = map_fund_ref_to_ror()
+
+    # Get funder metadata
     allkeys = ["doi"]
     funderMetadata = {}
+
     for funderDOI in funderDOIs:
         if len(funderMetadata) % 5000 == 0 and len(funderMetadata) > 0:
             print("Done {} of {} funders".format(len(funderMetadata), len(funderDOIs)))
         funderMetadata[funderDOI] = {"doi": str(funderDOI)}
+
+        # Save metadata for all triples with funder as subject
         for p,o in g.predicate_objects(funderDOI):
             if p not in allkeys:
                 allkeys.append(p)
             if "prefLabel" in p or "altLabel" in p:
                 # Get string literal for label
                 o = g.value(o, URIRef("http://www.w3.org/2008/05/skos-xl#literalForm"))
+                if "prefLabel" in p:
+                    funderMetadata[funderDOI]["prefLabel_lang"] = o.language
             if uris_to_labels[str(p)] not in funderMetadata[funderDOI]:
                 funderMetadata[funderDOI][uris_to_labels[str(p)]] = str(o)
             else:
                 funderMetadata[funderDOI][uris_to_labels[str(p)]] = funderMetadata[funderDOI][uris_to_labels[str(p)]] + "||" + str(o)
+
+        # Enhance metadata for Canadian entries
+        if funderMetadata[funderDOI]['crossref_country'] == "http://sws.geonames.org/6251999/":
+            # Add related ROR IDs
+            fundrefID = str(funderDOI).split("http://dx.doi.org/10.13039/")[1]
+            if fundrefID in fundref_to_ror.keys():
+                if "preferred" in fundref_to_ror[fundrefID]:
+                    funderMetadata[funderDOI]["ror_preferred"] = "||".join(fundref_to_ror[fundrefID]["preferred"])
+                if "secondary" in fundref_to_ror[fundrefID]:
+                    funderMetadata[funderDOI]["ror_secondary"] = "||".join(fundref_to_ror[fundrefID]["secondary"])
+
+            # Copy English and French prefLabels to separate columns
+            if funderMetadata[funderDOI]["prefLabel_lang"] == "en":
+                funderMetadata[funderDOI]["primaryName_en"] = funderMetadata[funderDOI]["skos-xl_prefLabel"]
+            elif funderMetadata[funderDOI]["prefLabel_lang"] == "fr":
+                funderMetadata[funderDOI]["primaryName_fr"] = funderMetadata[funderDOI]["skos-xl_prefLabel"]
+            else:
+                funderMetadata[funderDOI]["primaryName_other"] = funderMetadata[funderDOI]["skos-xl_prefLabel"]
+
+            # Copy English and French altLabels to separate columns
+            nonDisplay = []
+            altLabels_en = []
+            altLabels_fr = []
+            for altLabel in g.objects(funderDOI, URIRef("http://www.w3.org/2008/05/skos-xl#altLabel")):
+                altLabelLiteral = g.value(altLabel, URIRef("http://www.w3.org/2008/05/skos-xl#literalForm"))
+                termsusageFlag = g.value(altLabel, URIRef("http://data.crossref.org/fundingdata/termsusageFlag"))
+                if termsusageFlag and "acronym" in termsusageFlag:
+                    nonDisplay.append(str(altLabelLiteral))
+                elif altLabelLiteral.language == "en":
+                    altLabels_en.append(str(altLabelLiteral))
+                elif altLabelLiteral.language == "fr":
+                    altLabels_fr.append(str(altLabelLiteral))
+                else: # other languages, not acronyms
+                    nonDisplay.append(str(altLabelLiteral))
+            if len(nonDisplay) > 0:
+                funderMetadata[funderDOI]["nonDisplayNames"] = "||".join(nonDisplay)
+            if len(altLabels_en) > 0:
+                funderMetadata[funderDOI]["altNames_en"] = "||".join(altLabels_en)
+            if len(altLabels_fr) > 0:
+                funderMetadata[funderDOI]["altNames_fr"] = "||".join(altLabels_fr)
+
     print("Done {} of {} funders".format(len(funderMetadata), len(funderDOIs)))
 
+    # Supplement with previous labels
     # Add labels to subjects from the targets of: continuationOf, incorporates, mergerOf, replaces, and splitFrom
     for subject_funderDOI in funderMetadata:
         subject_funder = funderMetadata[subject_funderDOI]
@@ -243,6 +303,8 @@ def graph_pickle_to_full_metadata_csv():
                                 # Update target's previousLabel in funderMetadata
                                 target_previousLabels.extend(new_target_previousLabels)
                                 funderMetadata[URIRef(target_funderDOI)]["previousLabel"] = "||".join(target_previousLabels)
+
+
 
     # Add any missing keys to uris_to_labels for csv header
     for key in allkeys:
