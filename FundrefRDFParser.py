@@ -67,7 +67,7 @@ def get_funder_labels(funder):
 def rdf_to_graph_pickle():
     g = rdflib.Graph()
     result = g.parse("registry.rdf")
-
+    
     with open("registry.pickle", "wb") as f:
         pickle.dump(g, f, pickle.HIGHEST_PROTOCOL)
 
@@ -150,7 +150,6 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
         # remove columns not used
         for column in ["primaryName_en", "primaryName_fr", "primaryName_other", "nonDisplayNames", "altNames_en", "altNames_fr", "ror_preferred", "ror_secondary"]:
             uris_to_labels.pop(column)
-
 
     # Get funder metadata
     allkeys = ["doi"]
@@ -276,22 +275,18 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
         if str(key) not in uris_to_labels:
             uris_to_labels[str(key)] = str(key)
 
+    # Write funder metadata to csv file
     with open(output_filename, "w") as csvfile:
         csvwriter = csv.DictWriter(csvfile, fieldnames=list(uris_to_labels.values()))
         csvwriter.writeheader()
         for funderDOI in funderMetadata:
             csvwriter.writerow(funderMetadata[funderDOI])
 
-    for col in allkeys:
-        print(col)
-
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--graphpickle', action='store_true', default=False)
     parser.add_argument('--metadatacsv', action='store_true', default=False)
     parser.add_argument('--canada', action='store_true', default=False)
-    # Export everything
-
     args = parser.parse_args()
 
     if args.graphpickle:
