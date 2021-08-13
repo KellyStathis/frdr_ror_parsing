@@ -86,6 +86,7 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
     # Labels for CSV header
     uris_to_labels = {
         "doi": "doi",
+        "excluded": "excluded",
         "http://www.w3.org/2008/05/skos-xl#prefLabel": "skos-xl_prefLabel",
         "prefLabel_lang": "prefLabel_lang",
         "http://www.w3.org/2008/05/skos-xl#altLabel": "skos-xl_altLabel",
@@ -244,10 +245,14 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
             funderMetadata[subject_funderDOI]["previousLabel"] = "||".join(subject_previousLabels)
 
     # Add labels to targets from subjects with: incorporatedInto, isReplacedBy, mergedWith, renamedAs, and splitInto
+    # Add "excluded" flag to subjects with deprecated status or above relationships
     for subject_funderDOI in funderMetadata:
         subject_funder = funderMetadata[subject_funderDOI]
-        for relation in ["crossref_incorporatedInto", "crossref_isReplacedBy", "crossref_mergedWith", "dcterms_renamedAs", "crossref_splitInto"]:
+        if "crossref_termsstatus" in subject_funder and "Deprecated" in subject_funder["crossref_termsstatus"]:
+            funderMetadata[URIRef(subject_funderDOI)]["excluded"] = "excluded"
+        for relation in ["crossref_incorporatedInto", "dcterms_isReplacedBy", "crossref_mergedWith", "crossref_renamedAs", "crossref_splitInto"]:
             if relation in subject_funder:
+                funderMetadata[URIRef(subject_funderDOI)]["excluded"] = "excluded"
                 for target_funderDOI in subject_funder[relation].split("||"):
                     target_funder = funderMetadata[URIRef(target_funderDOI)]
                     # Get labels from subject (to become previous labels for target)
@@ -275,6 +280,7 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
         if str(key) not in uris_to_labels:
             uris_to_labels[str(key)] = str(key)
 
+    print("Writing data to {}...".format(output_filename))
     # Write funder metadata to csv file
     with open(output_filename, "w") as csvfile:
         csvwriter = csv.DictWriter(csvfile, fieldnames=list(uris_to_labels.values()))
