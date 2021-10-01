@@ -66,14 +66,14 @@ def get_funder_labels(funder):
 
 def rdf_to_graph_pickle():
     g = rdflib.Graph()
-    result = g.parse("registry.rdf")
+    result = g.parse("registry_data/registry.rdf")
     
-    with open("registry.pickle", "wb") as f:
+    with open("registry_data/registry.pickle", "wb") as f:
         pickle.dump(g, f, pickle.HIGHEST_PROTOCOL)
 
 def graph_pickle_to_full_metadata_csv(canada_processing):
     try:
-        with open("registry.pickle", "rb") as f:
+        with open("registry_data/registry.pickle", "rb") as f:
             print("Loading registry.pickle...")
             g = pickle.load(f)
     except FileNotFoundError as e:
@@ -280,9 +280,10 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
         if str(key) not in uris_to_labels:
             uris_to_labels[str(key)] = str(key)
 
-    print("Writing data to {}...".format(output_filename))
+    output_filepath = "output_data/" + output_filename
+    print("Writing data to {}...".format(output_filepath))
     # Write funder metadata to csv file
-    with open(output_filename, "w") as csvfile:
+    with open(output_filepath, "w") as csvfile:
         csvwriter = csv.DictWriter(csvfile, fieldnames=list(uris_to_labels.values()))
         csvwriter.writeheader()
         for funderDOI in funderMetadata:

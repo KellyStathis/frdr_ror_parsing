@@ -5,7 +5,7 @@ import csv
 def load_json(filename):
     # Read affiliation metadata from ROR json data dump
     try:
-        with open(filename, "r") as f:
+        with open("registry_data/" + filename, "r") as f:
             print("Reading data from {}...".format(filename))
             ror_data_list = json.load(f)
             return ror_data_list
@@ -27,10 +27,11 @@ def main():
     # Write affiliation metadata to csv file
     column_names = ["id", "primary_name", "additional_names"]
     output_filename = "affiliation_metadata.csv"
+    output_filepath = "output_data/" + output_filename
 
     print("Writing data to {}...".format(output_filename))
 
-    with open(output_filename, "w") as csvfile:
+    with open(output_filepath, "w") as csvfile:
         csvwriter = csv.DictWriter(csvfile, fieldnames=column_names)
         csvwriter.writeheader()
         for affiliation in ror_data_list:
