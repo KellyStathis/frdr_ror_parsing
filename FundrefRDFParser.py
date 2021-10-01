@@ -289,7 +289,7 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
             csvwriter.writerow(funderMetadata[funderDOI])
 
 def main():
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser()
     parser.add_argument('--graphpickle', action='store_true', default=False)
     parser.add_argument('--metadatacsv', action='store_true', default=False)
     parser.add_argument('--canada', action='store_true', default=False)

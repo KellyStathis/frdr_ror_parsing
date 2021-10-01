@@ -5,10 +5,12 @@ This project provides tools to parse ROR and Crossref Funder Registry data into 
 ## Research Organization Registry (ROR)
 `RORJsonParser.py` parses the ROR data dump (JSON) to a CSV file for use in FRDR affiliation metadata.
 
-Usage: `RORJsonParser.py --file ror-data.json`
+Usage: `python RORJsonParser.py --file ror-data.json`
 
 ## Crossref Funder Registry
 `FundrefRDFParser.py` parses the Crossref Funder Registry RDF file to a CSV file for use in FRDR funding metadata.
+
+Usage: `python FundrefRDFParser.py --graphpickle --metadatacsv`
 
 Optional processing for Canadian funders (`--canada` flag) includes:
 
