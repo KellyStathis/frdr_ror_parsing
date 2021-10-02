@@ -71,7 +71,7 @@ def rdf_to_graph_pickle():
     with open("registry_data/registry.pickle", "wb") as f:
         pickle.dump(g, f, pickle.HIGHEST_PROTOCOL)
 
-def graph_pickle_to_full_metadata_csv(canada_processing):
+def graph_pickle_to_full_metadata_csv(output_filename, export_type):
     try:
         with open("registry_data/registry.pickle", "rb") as f:
             print("Loading registry.pickle...")
@@ -126,9 +126,7 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
         "ror_secondary": "ror_secondary"
     }
 
-    output_filename = "funder_metadata.csv"
-    if canada_processing:
-        output_filename = "funder_metadata_canada.csv"
+    if export_type=="canada":
         # set up ROR lookup
         print("Preparing mapping from Crossref Funder Registry to ROR..")
         fundref_to_ror = map_fund_ref_to_ror()
@@ -177,7 +175,7 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
                 funderMetadata[funderDOI][uris_to_labels[str(p)]] = funderMetadata[funderDOI][uris_to_labels[str(p)]] + "||" + str(o)
 
         # Enhance metadata for Canadian entries
-        if canada_processing and funderMetadata[funderDOI]['crossref_country'] == "http://sws.geonames.org/6251999/":
+        if export_type=="canada" and funderMetadata[funderDOI]['crossref_country'] == "http://sws.geonames.org/6251999/":
             # Add human-readable name for Canada
             funderMetadata[funderDOI]['crossref_country'] = "Canada"
             # Replace states geonames URIs with provinces
@@ -280,31 +278,58 @@ def graph_pickle_to_full_metadata_csv(canada_processing):
         if str(key) not in uris_to_labels:
             uris_to_labels[str(key)] = str(key)
 
-    output_filepath = "output_data/" + output_filename
-    print("Writing data to {}...".format(output_filepath))
     # Write funder metadata to csv file
-    with open(output_filepath, "w") as csvfile:
-        csvwriter = csv.DictWriter(csvfile, fieldnames=list(uris_to_labels.values()))
-        csvwriter.writeheader()
-        for funderDOI in funderMetadata:
-            csvwriter.writerow(funderMetadata[funderDOI])
+    output_filepath = "output_data/" + output_filename
+    print("Writing data to {}...".format(output_filename))
+    if not export_type=="frdr":
+        # Write all metadata
+        with open(output_filepath, "w") as csvfile:
+            csvwriter = csv.DictWriter(csvfile, fieldnames=list(uris_to_labels.values()))
+            csvwriter.writeheader()
+            for funderDOI in funderMetadata:
+                csvwriter.writerow(funderMetadata[funderDOI])
+    else:
+        # Only write selected columns
+        column_names = ["id", "primary_name", "additional_names", "dcterms_created", "dcterms_modified"]
+        with open(output_filepath, "w") as csvfile:
+            csvwriter = csv.DictWriter(csvfile, fieldnames=column_names)
+            csvwriter.writeheader()
+            funder_count = 0
+            for funderDOI in funderMetadata:
+                if funderMetadata[funderDOI].get("excluded", ""):
+                    continue
+                additional_names = funderMetadata[funderDOI].get("skos-xl_altLabel", "")
+                if funderMetadata[funderDOI].get("previousLabel"):
+                    if additional_names:
+                        additional_names += "||"
+                    additional_names += funderMetadata[funderDOI].get("previousLabel")
+                csvwriter.writerow({"id": funderMetadata[funderDOI]["doi"],
+                                    "primary_name": funderMetadata[funderDOI]['skos-xl_prefLabel'],
+                                    "additional_names": additional_names,
+                                    "dcterms_created": funderMetadata[funderDOI].get("dcterms_created", ""),
+                                    "dcterms_modified": funderMetadata[funderDOI].get("dcterms_modified", "")})
+                funder_count +=1
+        print("Wrote {} funders to {}".format(funder_count, output_filename))
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--graphpickle', action='store_true', default=False)
     parser.add_argument('--metadatacsv', action='store_true', default=False)
-    parser.add_argument('--canada', action='store_true', default=False)
+    parser.add_argument('--exporttype',  choices=['canada', 'frdr'], type=str, required=False)
     args = parser.parse_args()
 
     if args.graphpickle:
         print("Generating registry.pickle from registry.rdf...")
         rdf_to_graph_pickle()
     if args.metadatacsv:
-        if args.canada:
-            print("Generating funder_metadata_canada.csv from registry.pickle (with Canadian processing)...")
-        else:
-            print("Generating funder_metadata.csv from registry.pickle (no Canadian processing)...")
-        graph_pickle_to_full_metadata_csv(args.canada)
+        output_filename = "funder_metadata"
+        if args.exporttype.lower() == "canada":
+            output_filename += "_canada"
+        elif args.exporttype.lower() == "frdr":
+            output_filename += "_frdr"
+        output_filename = output_filename + ".csv"
+        print("Generating {} from registry.pickle...".format(output_filename))
+        graph_pickle_to_full_metadata_csv(output_filename, args.exporttype.lower())
 
 
 if __name__ == "__main__":

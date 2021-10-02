@@ -26,7 +26,7 @@ def main():
 
     # Write affiliation metadata to csv file
     column_names = ["id", "primary_name", "additional_names"]
-    output_filename = "affiliation_metadata.csv"
+    output_filename = "affiliation_metadata_frdr.csv"
     output_filepath = "output_data/" + output_filename
 
     print("Writing data to {}...".format(output_filename))
