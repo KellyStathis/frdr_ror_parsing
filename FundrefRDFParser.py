@@ -326,7 +326,7 @@ def graph_pickle_to_full_metadata_csv(output_filename, export_type):
             csvwriter.writeheader()
             funder_count = 0
             for funderDOI in funderMetadata:
-                if funderMetadata[funderDOI].get("excluded", ""):
+                if funderMetadata[funderDOI].get("excluded", ""): # Do not write excluded funders to "frdr" export
                     continue
                 additional_names = funderMetadata[funderDOI].get("skos-xl_altLabel", "")
                 if funderMetadata[funderDOI].get("previousLabel"):
