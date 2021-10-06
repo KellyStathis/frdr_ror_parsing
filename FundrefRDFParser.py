@@ -344,13 +344,17 @@ def main():
         rdf_to_graph_pickle()
     if args.metadatacsv:
         output_filename = "funder_metadata"
-        if args.exporttype.lower() == "canada":
-            output_filename += "_canada"
-        elif args.exporttype.lower() == "frdr":
-            output_filename += "_frdr"
+        export_type = args.exporttype
+        if args.exporttype:
+            if args.exporttype.lower() == "canada":
+                output_filename += "_canada"
+            elif args.exporttype.lower() == "frdr":
+                output_filename += "_frdr"
+        else:
+            export_type = ""
         output_filename = output_filename + ".csv"
         print("Generating {} from registry.pickle...".format(output_filename))
-        graph_pickle_to_full_metadata_csv(output_filename, args.exporttype.lower())
+        graph_pickle_to_full_metadata_csv(output_filename, export_type)
 
 
 if __name__ == "__main__":
