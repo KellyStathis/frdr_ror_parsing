@@ -64,6 +64,51 @@ def get_funder_labels(funder):
         labels.extend(funder["skos-xl_altLabel"].split("||"))
     return labels
 
+def get_preceding_funders(g, funderDOI):
+    preceding_funders = []
+    for p, o in g.predicate_objects(funderDOI):
+        if str(p) in ["http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/continuationOf",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporates",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergerOf",
+                 "http://purl.org/dc/terms/replaces",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitFrom"]:
+            if o not in preceding_funders:
+                preceding_funders.append(o) # make recursive
+
+    for s, p in g.subject_predicates(funderDOI):
+        if str(p) in ["http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporatedInto",
+                 "http://purl.org/dc/terms/isReplacedBy",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergedWith",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/renamedAs",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitInto"]:
+            if s not in preceding_funders:
+                preceding_funders.append(s)  # make recursive
+
+    return preceding_funders
+
+def get_superceding_funders(g, funderDOI):
+    superceding_funders = []
+    for s, p in g.subject_predicates(funderDOI):
+        if str(p) in ["http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/continuationOf",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporates",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergerOf",
+                 "http://purl.org/dc/terms/replaces",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitFrom"]:
+            if s not in superceding_funders:
+                superceding_funders.append(s) # make recursive
+
+    for p, o in g.predicate_objects(funderDOI):
+        if str(p) in ["http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporatedInto",
+                 "http://purl.org/dc/terms/isReplacedBy",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergedWith",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/renamedAs",
+                 "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitInto"]:
+            if o not in superceding_funders:
+                superceding_funders.append(o)  # make recursive
+
+    return superceding_funders
+
+
 def rdf_to_graph_pickle():
     g = rdflib.Graph()
     result = g.parse("registry_data/registry.rdf")
@@ -220,58 +265,34 @@ def graph_pickle_to_full_metadata_csv(output_filename, export_type):
             if len(altLabels_fr) > 0:
                 funderMetadata[funderDOI]["altNames_fr"] = "||".join(altLabels_fr)
 
+        preceding_funders = get_preceding_funders(g, funderDOI)
+        superceding_funders = get_superceding_funders(g, funderDOI)
+
+        if "crossref_termsstatus" in funderMetadata[funderDOI] and "Deprecated" in funderMetadata[funderDOI]["crossref_termsstatus"]:
+            funderMetadata[funderDOI]["excluded"] = "excluded"
+
+        if len(superceding_funders) > 0:
+            funderMetadata[funderDOI]["excluded"] = "excluded"
+        if len(preceding_funders) > 0:
+            funderMetadata[funderDOI]["preceding_funders"] = preceding_funders
+
     print("Processed metadata for {} of {} funders".format(len(funderMetadata), len(funderDOIs)))
 
     # Supplement with previous labels
     print("Adding previous labels from related funders...")
-    # Add labels to subjects from the targets of: continuationOf, incorporates, mergerOf, replaces, and splitFrom
-    for subject_funderDOI in funderMetadata:
-        subject_funder = funderMetadata[subject_funderDOI]
-        subject_previousLabels = []
-        for relation in ["crossref_continuationOf", "crossref_incorporates", "crossref_mergerOf", "dcterms_replaces", "crossref_splitFrom"]:
-            if relation in subject_funder:
-                for target_funderDOI in subject_funder[relation].split("||"):
-                    target_funder = funderMetadata[URIRef(target_funderDOI)]
-                    subject_previousLabels.extend(get_funder_labels(target_funder))
-
-        # Exclude labels that duplicate subject's current labels (prefLabel or altLabels)
-        subject_currentLabels = get_funder_labels(subject_funder)
-        subject_previousLabels = list(set(subject_previousLabels) - set(subject_currentLabels))
-
-        if len(subject_previousLabels)  > 0:
-            # Update subject's previousLabel in funderMetadata
-            funderMetadata[subject_funderDOI]["previousLabel"] = "||".join(subject_previousLabels)
-
-    # Add labels to targets from subjects with: incorporatedInto, isReplacedBy, mergedWith, renamedAs, and splitInto
-    # Add "excluded" flag to subjects with deprecated status or above relationships
-    for subject_funderDOI in funderMetadata:
-        subject_funder = funderMetadata[subject_funderDOI]
-        if "crossref_termsstatus" in subject_funder and "Deprecated" in subject_funder["crossref_termsstatus"]:
-            funderMetadata[URIRef(subject_funderDOI)]["excluded"] = "excluded"
-        for relation in ["crossref_incorporatedInto", "dcterms_isReplacedBy", "crossref_mergedWith", "crossref_renamedAs", "crossref_splitInto"]:
-            if relation in subject_funder:
-                funderMetadata[URIRef(subject_funderDOI)]["excluded"] = "excluded"
-                for target_funderDOI in subject_funder[relation].split("||"):
-                    target_funder = funderMetadata[URIRef(target_funderDOI)]
-                    # Get labels from subject (to become previous labels for target)
-                    subject_currentLabels = get_funder_labels(funderMetadata[subject_funderDOI])
-
-                    # Exclude labels that duplicate target's current labels (prefLabel or altLabels)
-                    target_currentLabels = get_funder_labels(target_funder)
-                    subject_currentLabels = list(set(subject_currentLabels) - set(target_currentLabels))
-
-                    if len(subject_currentLabels) > 0:
-                        # Add subject's current labels as "previous labels" of target
-                        if "previousLabel" not in target_funder:
-                            # Update target's previousLabel in funderMetadata
-                            funderMetadata[URIRef(target_funderDOI)]["previousLabel"] = "||".join(subject_currentLabels)
-                        else:
-                            target_previousLabels = target_funder["previousLabel"].split("||")
-                            new_target_previousLabels = list(set(subject_currentLabels) - set(target_previousLabels))
-                            if len(new_target_previousLabels) > 0:
-                                # Update target's previousLabel in funderMetadata
-                                target_previousLabels.extend(new_target_previousLabels)
-                                funderMetadata[URIRef(target_funderDOI)]["previousLabel"] = "||".join(target_previousLabels)
+    for funderDOI in funderMetadata:
+        if "preceding_funders" in funderMetadata[funderDOI]:
+            currentLabels = get_funder_labels(funderMetadata[funderDOI])
+            previousLabels = []
+            preceding_funders = funderMetadata[funderDOI]["preceding_funders"]
+            for preceding_funderDOI in preceding_funders:
+                preceding_funder_labels = get_funder_labels(funderMetadata[preceding_funderDOI])
+                for label in preceding_funder_labels:
+                    if label not in currentLabels and label not in previousLabels:
+                        previousLabels.append(label)
+            if len(previousLabels) > 0:
+               funderMetadata[funderDOI]["previousLabel"] = "||".join(previousLabels)
+            funderMetadata[funderDOI].pop("preceding_funders")
 
     # Add any missing keys to uris_to_labels for csv header
     for key in allkeys:
