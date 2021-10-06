@@ -64,7 +64,8 @@ def get_funder_labels(funder):
         labels.extend(funder["skos-xl_altLabel"].split("||"))
     return labels
 
-def get_preceding_funders(g, funderDOI):
+def get_preceding_funders(g, funderDOI, visited_funderDOIs):
+    # visited_funderDOIs tracks funders to preent infinite recursion in cases where two funders precede each other
     preceding_funders = []
     for p, o in g.predicate_objects(funderDOI):
         if str(p) in ["http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/continuationOf",
@@ -72,8 +73,10 @@ def get_preceding_funders(g, funderDOI):
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergerOf",
                  "http://purl.org/dc/terms/replaces",
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitFrom"]:
-            if o not in preceding_funders:
-                preceding_funders.append(o) # make recursive
+            if o not in preceding_funders and o not in visited_funderDOIs:
+                preceding_funders.append(o)
+                visited_funderDOIs.append(o)
+                preceding_funders.extend(get_preceding_funders(g, o, visited_funderDOIs)) # recursive search
 
     for s, p in g.subject_predicates(funderDOI):
         if str(p) in ["http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporatedInto",
@@ -81,12 +84,14 @@ def get_preceding_funders(g, funderDOI):
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergedWith",
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/renamedAs",
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitInto"]:
-            if s not in preceding_funders:
-                preceding_funders.append(s)  # make recursive
+            if s not in preceding_funders and s not in visited_funderDOIs:
+                preceding_funders.append(s)
+                visited_funderDOIs.append(s)
+                preceding_funders.extend(get_preceding_funders(g, s, visited_funderDOIs)) # recursive search
 
     return preceding_funders
 
-def get_superceding_funders(g, funderDOI):
+def get_superceding_funders(g, funderDOI, visited_funderDOIs):
     superceding_funders = []
     for s, p in g.subject_predicates(funderDOI):
         if str(p) in ["http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/continuationOf",
@@ -94,8 +99,10 @@ def get_superceding_funders(g, funderDOI):
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergerOf",
                  "http://purl.org/dc/terms/replaces",
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitFrom"]:
-            if s not in superceding_funders:
-                superceding_funders.append(s) # make recursive
+            if s not in superceding_funders and s not in visited_funderDOIs:
+                superceding_funders.append(s)
+                visited_funderDOIs.append(s)
+                superceding_funders.extend(get_superceding_funders(g, s, visited_funderDOIs)) # recursive search
 
     for p, o in g.predicate_objects(funderDOI):
         if str(p) in ["http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/incorporatedInto",
@@ -103,8 +110,10 @@ def get_superceding_funders(g, funderDOI):
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/mergedWith",
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/renamedAs",
                  "http://data.crossref.org/fundingdata/xml/schema/grant/grant-1.2/splitInto"]:
-            if o not in superceding_funders:
-                superceding_funders.append(o)  # make recursive
+            if o not in superceding_funders and o not in visited_funderDOIs:
+                superceding_funders.append(o)
+                visited_funderDOIs.append(o)
+                superceding_funders.extend(get_superceding_funders(g, o, visited_funderDOIs))  # recursive search
 
     return superceding_funders
 
@@ -265,8 +274,8 @@ def graph_pickle_to_full_metadata_csv(output_filename, export_type):
             if len(altLabels_fr) > 0:
                 funderMetadata[funderDOI]["altNames_fr"] = "||".join(altLabels_fr)
 
-        preceding_funders = get_preceding_funders(g, funderDOI)
-        superceding_funders = get_superceding_funders(g, funderDOI)
+        preceding_funders = get_preceding_funders(g, funderDOI, [funderDOI])
+        superceding_funders = get_superceding_funders(g, funderDOI, [funderDOI])
 
         if "crossref_termsstatus" in funderMetadata[funderDOI] and "Deprecated" in funderMetadata[funderDOI]["crossref_termsstatus"]:
             funderMetadata[funderDOI]["excluded"] = "excluded"
