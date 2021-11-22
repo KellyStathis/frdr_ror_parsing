@@ -18,7 +18,7 @@ Usage: `python FundrefRDFParser.py --graphpickle --metadatacsv`
 
 Optional `--exporttype` argument can be used to change the output of step 2 (`--metadatacsv` flag):
 
-- `--exporttype frdr`: Only include the columns *id*, *primary_name*, *additional_names*, *dcterms_created*, and *dcterms_modified*. Do not include funders with termstatus "Deprecated" or funders that have been superseded by a new funder.
+- `--exporttype frdr`: Only include the columns *id*, *primary_name*, *additional_names*, *dcterms_created*, *dcterms_modified*, and *crossref_country*. Do not include funders with termstatus "Deprecated" or funders that have been superseded by a new funder.
 - `--exporttype canada`: Optional processing for Canadian funders, including:
     - separating out labels by language to support usage in bilingual applications
     - adding related ROR IDs

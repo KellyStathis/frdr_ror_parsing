@@ -320,7 +320,7 @@ def graph_pickle_to_full_metadata_csv(output_filename, export_type):
                 csvwriter.writerow(funderMetadata[funderDOI])
     else:
         # Only write selected columns
-        column_names = ["id", "primary_name", "additional_names", "dcterms_created", "dcterms_modified"]
+        column_names = ["id", "primary_name", "additional_names", "dcterms_created", "dcterms_modified", "crossref_country"]
         with open(output_filepath, "w") as csvfile:
             csvwriter = csv.DictWriter(csvfile, fieldnames=column_names)
             csvwriter.writeheader()
