@@ -3,9 +3,20 @@
 This project provides tools to parse ROR and Crossref Funder Registry data into CSV files for FRDR.
 
 ## Research Organization Registry (ROR)
-`RORJsonParser.py` parses the ROR data dump (JSON) to a CSV file for use in FRDR affiliation metadata. This output file has the columns  *id*, *primary_name*, amd *additional_names*.
+`RORJsonParser.py` parses the ROR data dump (JSON) to a CSV file for use in FRDR affiliation metadata. 
 
-Usage: `python RORJsonParser.py --file ror-data.json`
+Optionally, it can process an override file which specifies a name in English, a name in French, and additional alternate names for specified ROR IDs. Overrides should be specified in TSV format with columns **id**, **name_en**, **name_fr**, and **altnames**.
+
+Usage: `python RORJsonParser.py --data ror-data.json --override ror_overrides.tsv`
+
+The output file `frdr_affiliation_metadata.csv` has the following columns:
+
+-  **id**: ROR ID
+-  **country_code**: two-letter country code from ROR
+-  **name_en**: main name in ROR or name_en from override file
+-  **name_fr**: main name in ROR or name_fr from override
+-  **altnames**: all labels, aliases, and acronyms in ROR - plus all altnames specified in override file - delimited by "||"
+
 
 ## Crossref Funder Registry
 `FundrefRDFParser.py` parses the Crossref Funder Registry RDF file to a CSV file for use in FRDR funding metadata.
