@@ -27,8 +27,8 @@ def main():
     ror_data_list = load_json(args.data)
 
     # Load overrides
+    ror_overrides = {}
     if args.overrides:
-        ror_overrides = {}
         with open("registry_data/" + args.overrides, "r") as f:
             csvreader = csv.DictReader(f, delimiter="\t")
             for row in csvreader:
