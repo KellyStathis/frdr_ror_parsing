@@ -117,9 +117,9 @@ def get_superceding_funders(g, funderDOI, visited_funderDOIs):
 
     return superceding_funders
 
-def rdf_to_graph_pickle():
+def rdf_to_graph_pickle(data_file):
     g = rdflib.Graph()
-    result = g.parse("registry_data/registry.rdf")
+    result = g.parse("registry_data/" + data_file)
     
     with open("registry_data/registry.pickle", "wb") as f:
         pickle.dump(g, f, pickle.HIGHEST_PROTOCOL)
@@ -346,6 +346,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--graphpickle", action="store_true", default=False)
     parser.add_argument("--metadatacsv", action="store_true", default=False)
+    parser.add_argument("--data", "-d", type=str, required=False)
     parser.add_argument("--exporttype",  choices=["frdr", "curation_ca", "full"], type=str, required=False, default="frdr")
     parser.add_argument("--rordata", type=str, required=False)
     args = parser.parse_args()
@@ -355,8 +356,11 @@ def main():
         args.graphpickle = True
         args.metadatacsv = True
     if args.graphpickle:
-        print("Generating registry.pickle from registry.rdf...")
-        rdf_to_graph_pickle()
+        if not args.data:
+            print("Specify the registry data file name with --data")
+        else:
+            print("Generating registry.pickle from {}...".format(args.data))
+            rdf_to_graph_pickle(args.data)
     if args.metadatacsv:
         output_filename = "funder_metadata_" + args.exporttype.lower() + ".csv"
         print("Generating {} from registry.pickle...".format(output_filename))

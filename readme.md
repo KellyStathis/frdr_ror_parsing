@@ -26,10 +26,22 @@ The output file `frdr_affiliation_metadata.csv` has the following columns:
 ### Flags
 Because the RDF graph takes a long time to process, execution can be separated into two steps with optional flags. If neither `--graphpickle` or `--metadatacsv` is specified, both steps will be executed.
 
-Usage: `python FundrefRDFParser.py --graphpickle --metadatacsv`
+#### Step 1: `--graphpickle`
 
-- Step 1: `--graphpickle`: Generate registry.pickle from registry.rdf. (TODO: Allow users to specify this file name with --data parameter. File should be placed in registry_data.)
-- Step 2: `--metadatacsv`: Generate funder_metadata.csv from registry.pickle.
+Generate registry.pickle from the file specified with `--data` (which must be located in registry_data).
+
+Usage example: `python FundrefRDFParser.py --graphpickle --data registry.rdf`
+
+#### Step 2: `--metadatacsv`
+Generate funder_metadata.csv from registry.pickle.
+
+Usage examples:
+
+- `python FundrefRDFParser.py --metadatacsv` (same as `--exporttype frdr`)
+- `python FundrefRDFParser.py --metadatacsv --exporttype frdr`
+- `python FundrefRDFParser.py --metadatacsv --exporttype full`
+- `python FundrefRDFParser.py --metadatacsv --exporttype curation_ca --rordata 2021-09-23-ror-data.json`
+
 
 ### Export types
 There are three different export types which can be specified with the optional `--exporttype` flag. These modify the metadata CSV file output (the output of step 2 above).
@@ -58,9 +70,6 @@ This export includes all funders except:
 - replacing geonames URIs for Canada and the provinces/territories with names
 
 To add related ROR IDs, the name of the ROR data file must be specified with `--rordata`. This file should be placed in the `registry_data` folder.
-
-Usage example: `python FundrefRDFParser.py --metadatacsv --exporttype curation_ca --rordata 2021-09-23-ror-data.json`
-
 
 ## Workflow Documentation
 - [ROR: Workflows for FRDR](https://docs.google.com/document/d/1-5n_A9Wo9OzVdQ6OYk0vIKF0khsY6iQu3REMBGWP5K4/edit#)
