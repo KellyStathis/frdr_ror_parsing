@@ -1,1 +1,3 @@
-ror-data.json
+registry_data/*
+output_data/*
+.idea
