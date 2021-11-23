@@ -124,7 +124,7 @@ def rdf_to_graph_pickle(data_file):
     with open("registry_data/registry.pickle", "wb") as f:
         pickle.dump(g, f, pickle.HIGHEST_PROTOCOL)
 
-def graph_pickle_to_full_metadata_csv(output_filename, export_type, ror_data_file=""):
+def graph_pickle_to_full_metadata_csv(output_filename, export_type, ror_data_file, override_file):
     try:
         with open("registry_data/registry.pickle", "rb") as f:
             print("Loading registry.pickle...")
@@ -320,6 +320,14 @@ def graph_pickle_to_full_metadata_csv(output_filename, export_type, ror_data_fil
                 if export_type!="curation_ca" or funderMetadata[funderDOI]["crossref_country"] == "Canada":
                     csvwriter.writerow(funderMetadata[funderDOI])
     else:
+        # Load overrides
+        cfr_overrides = {}
+        if override_file:
+            with open("registry_data/" + override_file, "r") as f:
+                csvreader = csv.DictReader(f, delimiter="\t")
+                for row in csvreader:
+                    cfr_overrides[row["id"]] = {"name_en": row["name_en"], "name_fr": row["name_fr"],
+                                                "altnames": row["altnames"]}
         # Only write selected columns
         column_names = ["id", "country_code", "name_en", "name_fr", "altnames"]
         with open(output_filepath, "w") as csvfile:
@@ -327,17 +335,55 @@ def graph_pickle_to_full_metadata_csv(output_filename, export_type, ror_data_fil
             csvwriter.writeheader()
             funder_count = 0
             for funderDOI in funderMetadata:
-                if funderMetadata[funderDOI].get("excluded", ""): # Do not write excluded funders to "frdr" export
+                # Do not write excluded funders to "frdr" export
+                if funderMetadata[funderDOI].get("excluded", ""):
                     continue
-                altnames = funderMetadata[funderDOI].get("skos-xl_altLabel", "")
-                if funderMetadata[funderDOI].get("previousLabel"): # Include previous labels in altnames
-                    if altnames:
-                        altnames += "||"
-                    altnames += funderMetadata[funderDOI].get("previousLabel")
+
+                name_en = funderMetadata[funderDOI]["skos-xl_prefLabel"]
+                name_fr = funderMetadata[funderDOI]["skos-xl_prefLabel"]
+                altnames = funderMetadata[funderDOI].get("skos-xl_altLabel", "").split("||")
+
+                # Include previous labels in altnames
+                if funderMetadata[funderDOI].get("previousLabel"):
+                    previousLabels = funderMetadata[funderDOI].get("previousLabel").split("||")
+                    altnames = altnames + previousLabels
+
+                # Add overrides to CFR data
+                if funderMetadata[funderDOI]["doi"] in cfr_overrides:
+                    funder_override = cfr_overrides[funderMetadata[funderDOI]["doi"]]
+
+                    # Override name_en and name_fr
+                    if funder_override["name_en"] or funder_override["name_fr"]:
+                        name_en = funder_override["name_en"]
+                        name_fr = funder_override["name_fr"]
+                        # If there is no English name, use curated French name and vice versa
+                        if not name_en:
+                            name_en = name_fr
+                        elif not name_fr:
+                            name_fr = name_en
+                        # Add original name to altnames, if needed
+                        if funderMetadata[funderDOI]["skos-xl_prefLabel"] != name_en and funderMetadata[funderDOI]["skos-xl_prefLabel"] != name_fr:
+                            altnames.append(funderMetadata[funderDOI]["skos-xl_prefLabel"])
+
+                    # Add additional altnames from overrides
+                    if funder_override["altnames"]:
+                        altnames += funder_override["altnames"].split("||")
+
+                # Remove duplicates from altnames
+                altnames = list(set(altnames))
+                # Remove altnames that duplicate name_en or name_fr
+                if name_en in altnames:
+                    altnames.remove(name_en)
+                if name_fr in altnames:
+                    altnames.remove(name_fr)
+
+                # Reformat altnames to "||"-delimited string
+                altnames = "||".join(list(set(altnames)))
+
                 csvwriter.writerow({"id": funderMetadata[funderDOI]["doi"],
                                     "country_code": funderMetadata[funderDOI]["crossref_country"],
-                                    "name_en": funderMetadata[funderDOI]["skos-xl_prefLabel"],
-                                    "name_fr": funderMetadata[funderDOI]["skos-xl_prefLabel"],
+                                    "name_en": name_en,
+                                    "name_fr": name_fr,
                                     "altnames": altnames})
                 funder_count +=1
         print("Wrote {} funders to {}".format(funder_count, output_filename))
@@ -348,7 +394,8 @@ def main():
     parser.add_argument("--metadatacsv", action="store_true", default=False)
     parser.add_argument("--data", "-d", type=str, required=False)
     parser.add_argument("--exporttype",  choices=["frdr", "curation_ca", "full"], type=str, required=False, default="frdr")
-    parser.add_argument("--rordata", type=str, required=False)
+    parser.add_argument("--rordata", type=str, required=False, default="")
+    parser.add_argument("--overrides", "-o", type=str, required=False, default="")
     args = parser.parse_args()
 
     if not args.graphpickle and not args.metadatacsv:
@@ -364,7 +411,7 @@ def main():
     if args.metadatacsv:
         output_filename = "funder_metadata_" + args.exporttype.lower() + ".csv"
         print("Generating {} from registry.pickle...".format(output_filename))
-        graph_pickle_to_full_metadata_csv(output_filename, args.exporttype, args.rordata)
+        graph_pickle_to_full_metadata_csv(output_filename, args.exporttype, args.rordata, args.overrides)
 
 if __name__ == "__main__":
     main()

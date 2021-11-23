@@ -9,7 +9,7 @@ Optionally, it can process an override file which specifies a name in English, a
 
 All source files should be placed in the registry_data folder.
 
-Usage: `python RORJsonParser.py --data ror-data.json --override ror_overrides.tsv`
+Usage: `python RORJsonParser.py --data ror-data.json --overrides ror_overrides.tsv`
 
 The output file `frdr_affiliation_metadata.csv` has the following columns:
 
@@ -38,6 +38,7 @@ Generate funder_metadata.csv from registry.pickle.
 Usage examples:
 
 - `python FundrefRDFParser.py --metadatacsv` (same as `--exporttype frdr`)
+- `python FundrefRDFParser.py --metadatacsv --exporttype frdr --overrides cfr_overrides.tsv`
 - `python FundrefRDFParser.py --metadatacsv --exporttype frdr`
 - `python FundrefRDFParser.py --metadatacsv --exporttype full`
 - `python FundrefRDFParser.py --metadatacsv --exporttype curation_ca --rordata 2021-09-23-ror-data.json`
@@ -58,6 +59,8 @@ This is the default export type if no type is specified.
 This export includes all funders except:
 	- funders with termstatus "Deprecated"
 	- funders that have been superseded by a new funder
+
+**TODO: Not yet implemented:** Optionally, the FRDR export can incorporate an override file which specifies a name in English, a name in French, and additional alternate names for specified ROR IDs. Overrides should be specified in TSV format with columns **id**, **name_en**, **name_fr**, and **altnames**. The filename is specified with the `--override` argument.
 
 #### Full
 `--exporttype full` includes all columns from the Crossref Funder Registry. It includes all funders regardless of termstatus.
