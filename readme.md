@@ -60,7 +60,7 @@ This export includes all funders except:
 	- funders with termstatus "Deprecated"
 	- funders that have been superseded by a new funder
 
-**TODO: Not yet implemented:** Optionally, the FRDR export can incorporate an override file which specifies a name in English, a name in French, and additional alternate names for specified ROR IDs. Overrides should be specified in TSV format with columns **id**, **name_en**, **name_fr**, and **altnames**. The filename is specified with the `--override` argument.
+Optionally, the FRDR export can incorporate an override file which specifies a name in English, a name in French, and additional alternate names for specified ROR IDs. Overrides should be specified in TSV format with columns **id**, **name_en**, **name_fr**, and **altnames**. The filename is specified with the `--overrides` argument.
 
 #### Full
 `--exporttype full` includes all columns from the Crossref Funder Registry. It includes all funders regardless of termstatus.
