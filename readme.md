@@ -18,6 +18,7 @@ The output file `frdr_affiliation_metadata.csv` has the following columns:
 -  **name_en**: main name in ROR or name_en from override file
 -  **name_fr**: main name in ROR or name_fr from override file
 -  **altnames**: all labels, aliases, and acronyms in ROR - plus all altnames specified in override file - delimited by "||"
+-  **tags**: "Signup" if organization should appear in FRDR new user application form (inclues all Canadian organizations that are not type "Company")
 
 
 ## Crossref Funder Registry
