@@ -84,6 +84,7 @@ def main():
             altnames = "||".join(list(set(altnames)))
 
             # Determine tags
+            # TODO - if we need to exclude specific orgs: add a "Signup" indicator to the "overrides" file and use it here
             tags = ""
             if affiliation["country"]["country_code"] == "CA" and "Company" not in affiliation["types"]:
                 # Canadian organizations that are not type "Company" appear in registration form
